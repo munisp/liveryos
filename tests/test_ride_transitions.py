@@ -31,3 +31,12 @@ def test_no_show_only_from_assigned_or_at_pickup():
     assert can_transition("ASSIGNED", "NO_SHOW")
     assert can_transition("AT_PICKUP", "NO_SHOW")
     assert not can_transition("EN_ROUTE", "NO_SHOW")
+
+
+def test_requeue_from_assigned_only():
+    """Board requeue (driver fell through) returns the ride to QUOTED —
+    legal only from ASSIGNED, never mid-trip."""
+    assert can_transition("ASSIGNED", "QUOTED")
+    assert not can_transition("EN_ROUTE", "QUOTED")
+    assert not can_transition("IN_PROGRESS", "QUOTED")
+    assert not can_transition("COMPLETED", "QUOTED")

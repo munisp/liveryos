@@ -30,7 +30,7 @@ Built per the GroundAlliance re-implementation report (`groundalliance.agent.fin
 |-------|---------|-------|
 | Phase 0 | Vendor-diligence pack (`docs/phase0/`): GA email script, export-completeness checklist, contract review, Gate 1 scorecard, GNet application prep | ✅ done |
 | Phase 1 | Foundation scaffold: full-stack compose, tenant provisioning, `livery_core` app skeleton, **rate engine (implemented + tested)**, ride dispatch state machine | ✅ this commit |
-| Phase 2 | Dispatch board (Beveren FSM reference), live GPS map, GA adapter seam | next |
+| Phase 2 | Dispatch board assignment engine, position ingest (Traccar→Centrifugo), event catalog, chauffeur compliance sweep, GA transition adapter (CSV live / API gated on Gate 1) | ✅ done — 39 tests |
 | Phase 3 | Driver/passenger apps, affiliate engine, GNet GRES conformance | planned |
 | Phase 4 | Hardening + first tenant migration (report Ch. 8 playbook) | planned |
 
@@ -45,5 +45,13 @@ python -m pytest tests/ -q                              # domain tests, no bench
 docker compose -f infra/docker-compose.yml config -q    # validate stack
 bash scripts/new-tenant.sh acme PT ops@acme.example     # provision a tenant site
 ```
+
+## Phase 2 modules
+
+- `dispatch/board.py` — assignment engine: hard filters (vehicle class, compliance, idle) → haversine proximity ranking; `suggest_assignments` / `auto_assign` / board `tick()`; ETAs are always labeled `eta_source="estimate"` (straight-line) until Valhalla-routed ETAs land with bench integration.
+- `adapters/position_ingest.py` — Traccar webhook → `PositionStore` (stale-fix drop, bounded history) → Centrifugo `tenant:{slug}#positions`; hourly `poll_traccar_fallback` sweep covers missed webhooks; duplicate/out-of-order fixes never reach the boards.
+- `adapters/events.py` + `booking_events.py` + `billing_events.py` — canonical event catalog from Sales Order / Invoice / Payment Entry hooks; log-only emit until the outbox DocType lands (honest degrade).
+- `adapters/compliance.py` — daily licence/medical expiry sweep (gap item 12); non-compliant chauffeurs drop out of board eligibility and trigger alerts. PT (TVDE) and NG (LASG/LASTMA) aware.
+- `adapters/transition/ga_adapter.py` — GA anti-corruption seam: CSV export path live (per-row quarantine, Decimal minor-unit money, US+ISO datetimes, status mapping, `provenance="ga_import"`); `ApiSource` raises `NotConfigured` until Gate 1 delivers documented API + sandbox.
 
 CI: `.github/workflows/ci.yml` — pytest + compose/JSON/shell validation.

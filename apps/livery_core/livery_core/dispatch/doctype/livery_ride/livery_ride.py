@@ -11,7 +11,9 @@ the property GA's rate module has and the parity replay (Gate 3) depends on.
 
 LEGAL_TRANSITIONS = {
     "QUOTED": {"ASSIGNED", "CANCELLED"},
-    "ASSIGNED": {"EN_ROUTE", "CANCELLED", "NO_SHOW"},
+    # ASSIGNED→QUOTED is the board requeue (driver fell through, ride goes
+    # back to the board). Phase 2 dispatch board depends on it.
+    "ASSIGNED": {"EN_ROUTE", "CANCELLED", "NO_SHOW", "QUOTED"},
     "EN_ROUTE": {"AT_PICKUP", "CANCELLED"},
     "AT_PICKUP": {"IN_PROGRESS", "NO_SHOW"},
     "IN_PROGRESS": {"COMPLETED"},
