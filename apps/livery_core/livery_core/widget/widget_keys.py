@@ -63,9 +63,9 @@ def issue_key(keystore: "KeyStore", *, tenant: str,
 class _Bucket:
     __slots__ = ("tokens", "ts")
 
-    def __init__(self, capacity: int):
+    def __init__(self, capacity: int, ts: datetime):
         self.tokens = float(capacity)
-        self.ts = datetime.now(timezone.utc)
+        self.ts = ts
 
 
 class KeyStore:
@@ -78,7 +78,9 @@ class KeyStore:
 
     def save(self, key: EmbedKey) -> None:
         self._by_hash[key.key_hash] = key
-        self._buckets[key.key_hash] = _Bucket(key.rate_per_minute)
+        # bucket is created lazily on first consume (with that call's clock) —
+        # a bucket born on wall-clock time would drain/refill wrongly for
+        # callers passing a different (e.g. replayed/test) clock.
 
     def get(self, raw_key: str) -> Optional[EmbedKey]:
         return self._by_hash.get(hash_key(raw_key))
@@ -90,9 +92,13 @@ class KeyStore:
         return revoked
 
     def _consume(self, key: EmbedKey, now: datetime) -> None:
-        bucket = self._buckets.setdefault(key.key_hash,
-                                          _Bucket(key.rate_per_minute))
-        elapsed = (now - bucket.ts).total_seconds()
+        bucket = self._buckets.get(key.key_hash)
+        if bucket is None:
+            bucket = self._buckets[key.key_hash] = _Bucket(
+                key.rate_per_minute, now)
+        elapsed = max(0.0, (now - bucket.ts).total_seconds())
+        # negative elapsed (clock skew / replayed timestamps) refills nothing —
+        # it must never DRAIN tokens either.
         bucket.tokens = min(float(key.rate_per_minute),
                             bucket.tokens + elapsed * key.rate_per_minute / 60.0)
         bucket.ts = now
