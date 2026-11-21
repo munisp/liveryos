@@ -1,0 +1,19 @@
+<!doctype html>
+<!-- LiveryOS booking widget — host-page demo / integration test harness.
+     A customer site only needs the two lines in <body> marked EMBED. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Booking widget demo</title>
+  <style>body{font-family:system-ui;background:#f4f1ea;margin:40px;color:#2b2b28}</style>
+</head>
+<body>
+  <h1>Hotel site demo</h1>
+  <p>Everything below this line is the embeddable widget.</p>
+  <!-- EMBED: begin -->
+  <div data-livery-widget data-key="lvk_demo_replace_me" data-tenant="demo"></div>
+  <script src="widget.js" defer></script>
+  <!-- EMBED: end -->
+</body>
+</html>

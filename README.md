@@ -35,6 +35,16 @@ Built per the GroundAlliance re-implementation report (`groundalliance.agent.fin
 | Phase 3 | **Affiliate engine** (farm-in/out, splits, blocking lists), **GRES mapping** (lossless round-trip primitive), **passenger + driver PWAs** (offline-first), shared API contract | ✅ done — 58 tests |
 | Phase 4 | Migration pipeline (idempotent delta imports), nightly reconciliation + cutover gate, event outbox dispatcher, cutover runbook | ✅ done — 72 tests |
 | Phase 5 | VPS deployment pack: provisioning guide, Caddy TLS proxy + prod overlay, env template, idempotent bootstrap, nightly backup script | ✅ done |
+| Phase 6 | **GA-parity gap closure (6 workstreams)**: payments breadth (Stripe EUR + Paystack NGN, pre-auth/capture, EBizCharge-parity posting + commission automation), telephony & messaging (LiveKit masked calls, Pipecat voice bots, WhatsApp/SMS/voice notifications), flight tracking (auto-adjust with hysteresis + lock window), booking widget + corporate portal (PO policy, budgets, approvals), Metabase BI (7 views + 2 dashboards), native Flutter apps | ✅ done — 147 tests |
+
+## Phase 6 modules (GA-parity workstreams)
+
+- `adapters/payments/` — gateway protocol with **currency fencing** (EUR→Stripe/SEPA, NGN→Paystack; a mismatch raises, we never auto-convert); pre-auth/capture-on-completion intent lifecycle (capture ≤ authorization, idempotency keys, replay-safe store); **EBizCharge parity**: captured payments post to invoices as `invoice.paid` events, and farmed-trip captures auto-emit affiliate commission settlements via `split_minor` (zero penny loss; per-booking-quote partners settle honestly as `commission_pending_quote`).
+- `adapters/telephony/` — **masked calling** (GA $30/mo parity): proxy-number pool with one-active-assignment-per-number, expiry, no silent un-masking (pool exhausted → "calling unavailable"); **LiveKit** access tokens (real HS256 JWTs, stdlib-only); **Pipecat** voice-bot pipeline specs (bot discloses itself, emits structured intents only, never fakes a human after hours); notification composer (NG = WhatsApp-first, PT = SMS-first, critical events add voice drop) — composed requests are *queued* to the outbox, never claimed sent.
+- `adapters/flights/` — AeroAPI-class feed parsing (unknown statuses quarantine to `UNKNOWN`, naive datetimes rejected, delay-without-estimate downgrades) + pickup adjustment policy: hysteresis (small wobbles don't move pickups), lock window (last 45 min belong to a human), cancellations propose rebooking and NEVER silently cancel the ride.
+- `widget/` + `apps/booking_widget/` + `apps/corporate_portal/` — embeddable widget (origin-bound keys, sha256 storage, token-bucket rate limits) and corporate tool (PO-required enforcement, service-class caps, cost-center budgets, approval routing, currency match — rejected bookings carry readable reasons and there is no "book anyway").
+- `bi/` — 7 read-only SQL views on livery-db (revenue grouped by currency, NEVER blended) + 2 Metabase dashboard manifests (Operations, Finance, all tenant-scoped) + idempotent provisioner script.
+- `apps/driver_flutter/` + `apps/passenger_flutter/` — native apps (ride queue with offline transition journal, 15s position reporting with device timestamps, LiveKit masked calls, WhatsApp share). No Flutter SDK in CI — structurally validated, honestly labeled as such.
 
 ## The rate engine
 
@@ -75,4 +85,4 @@ bash scripts/new-tenant.sh acme PT ops@acme.example     # provision a tenant sit
 - `adapters/outbox.py` — event outbox dispatcher: at-least-once delivery (subscribers dedupe on `event_id`), exponential backoff capped at 300s, dead-letter after 8 attempts (an operator queue, never silent loss), HMAC-signed webhook delivery. Completes the Phase 2 emit seam.
 - `docs/phase4/cutover-runbook.md` — the executable T-90 → T+30 runbook: every step names its artifact and pass criterion, with STOP conditions and four rollback triggers.
 
-CI: `.github/workflows/ci.yml` — pytest + compose/JSON/shell validation + PWA JS syntax/manifest checks.
+CI: `.github/workflows/ci.yml` — pytest + compose/JSON/shell/dashboard-manifest validation + PWA/widget/portal JS syntax and manifest checks.

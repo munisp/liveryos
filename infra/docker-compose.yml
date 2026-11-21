@@ -149,6 +149,26 @@ services:
     ports:
       - "8080:8080"
 
+  livekit:
+    image: livekit/livekit-server:v1.8
+    # Apache-2.0. WebRTC/SIP substrate for masked passenger↔driver calls
+    # and the Pipecat voice-agent bots (telephony & messaging workstream).
+    # Tokens are minted by livery_core.adapters.telephony.livekit_token
+    # (HS256 JWT against LIVEKIT_API_SECRET below — no secret, no tokens,
+    # and voice features honestly stay OFF).
+    command: ["--config", "/etc/livekit.yaml"]
+    volumes:
+      - ./livekit.yaml:/etc/livekit.yaml:ro
+    environment:
+      LIVEKIT_KEYS: ${LIVEKIT_API_KEY:-devkey}:${LIVEKIT_API_SECRET:-CHANGEME-livekit-secret-32-bytes-minimum}
+    ports:
+      - "7880:7880"        # HTTP/WebSocket signalling
+      - "7881:7881"        # RTC TCP
+      - "7882:7882/udp"    # RTC UDP mux
+      - "5060:5060"        # SIP (masked-call bridging; enable with trunk config)
+    # Prod overlay strips host ports — Caddy terminates TLS and proxies
+    # rtc.bench.example.com → livekit:7880 (wss).
+
   metabase:
     image: metabase/metabase:latest
     # AGPL-3.0 — BOUNDARY SERVICE: connects to a MariaDB READ REPLICA with a

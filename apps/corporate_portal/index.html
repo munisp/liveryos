@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#1d3a5f">
+  <link rel="manifest" href="manifest.webmanifest">
+  <title>LiveryOS Corporate Portal</title>
+  <style>
+    body{font-family:system-ui;margin:0;background:#f4f1ea;color:#2b2b28}
+    header{background:#1d3a5f;color:#fff;padding:14px 18px}
+    main{max-width:720px;margin:24px auto;padding:0 16px}
+    form{display:grid;gap:10px;background:#fff;padding:18px;border-radius:12px;border:1px solid #d8d2c4}
+    input,select,button{padding:11px;border:1px solid #d8d2c4;border-radius:8px;font-size:15px}
+    button{background:#2f5d3a;color:#fff;border:0;font-weight:600}
+    .note{font-size:13px;color:#6b675f}
+    #decision{margin-top:14px;padding:12px;border-radius:8px;background:#fff;border:1px solid #d8d2c4}
+    .err{border-color:#b04030!important;color:#b04030}
+  </style>
+</head>
+<body>
+  <header><strong>LiveryOS Corporate</strong> — monthly-billed business travel</header>
+  <main>
+    <form id="book">
+      <select id="traveler" required></select>
+      <input id="pickup" placeholder="Pickup address" required>
+      <input id="dropoff" placeholder="Dropoff address" required>
+      <input id="when" type="datetime-local" required>
+      <select id="cls"></select>
+      <select id="center"></select>
+      <input id="po" placeholder="PO number">
+      <div class="note" id="ponote"></div>
+      <button type="submit">Check policy & book</button>
+    </form>
+    <div id="decision" hidden></div>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

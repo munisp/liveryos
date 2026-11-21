@@ -1,0 +1,9 @@
+{
+  "name": "LiveryOS Corporate Portal",
+  "short_name": "Corporate",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f4f1ea",
+  "theme_color": "#1d3a5f",
+  "icons": []
+}

@@ -12,6 +12,7 @@ services:
       - keycloak
       - centrifugo
       - metabase
+      - livekit
     ports:
       - "80:80"
       - "443:443"
@@ -31,6 +32,13 @@ services:
 
   livery-db:
     ports: []        # no public Postgres — the dev port mapping was convenience
+
+  livekit:
+    ports:
+      - "7881:7881"        # RTC TCP — must stay reachable for media
+      - "7882:7882/udp"    # RTC UDP mux — must stay reachable for media
+    # signalling (7880) and SIP (5060) stay internal: wss comes via Caddy
+    # (rtc.example.com), SIP bridging is carrier-side.
 
 volumes:
   caddy-data:

@@ -1,0 +1,36 @@
+{
+  "name": "LiveryOS — Finance",
+  "description": "Revenue, payments, affiliate settlements. Currency rows are side-by-side, never summed across currencies.",
+  "collection": "LiveryOS",
+  "cards": [
+    {
+      "title": "Revenue per day per currency",
+      "display": "bar",
+      "view": "v_bi_revenue_per_day",
+      "query": "SELECT day, currency, revenue_minor / 100.0 AS revenue, paid_invoices FROM v_bi_revenue_per_day WHERE tenant = {{tenant}} ORDER BY day",
+      "axes": {"x": "day", "y": ["revenue"], "series": "currency"}
+    },
+    {
+      "title": "Payment funnel by gateway",
+      "display": "table",
+      "view": "v_bi_payment_funnel",
+      "query": "SELECT gateway, currency, authorized, captured, refunded, released_auths, captured_minor_total / 100.0 AS captured_total FROM v_bi_payment_funnel WHERE tenant = {{tenant}}"
+    },
+    {
+      "title": "Affiliate settlements per partner (weekly)",
+      "display": "bar",
+      "view": "v_bi_affiliate_settlements",
+      "query": "SELECT week, partner_ref, currency, partner_minor / 100.0 AS partner_share, operator_minor / 100.0 AS operator_share FROM v_bi_affiliate_settlements WHERE tenant = {{tenant}} ORDER BY week",
+      "axes": {"x": "week", "y": ["partner_share", "operator_share"], "series": "partner_ref"}
+    },
+    {
+      "title": "GA migration quarantine rate",
+      "display": "table",
+      "view": "v_bi_ga_import_health",
+      "query": "SELECT batch_id, imported, quarantined, quarantine_pct FROM v_bi_ga_import_health WHERE tenant = {{tenant}} ORDER BY batch_id"
+    }
+  ],
+  "parameters": [
+    {"name": "tenant", "type": "text", "required": true}
+  ]
+}

@@ -1,0 +1,24 @@
+name: liveryos_passenger
+description: LiveryOS passenger app — booking, live tracking, masked calls.
+publish_to: "none"
+version: 0.1.0
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  dio: ^5.7.0
+  centrifuge: ^0.15.0     # live ride tracking channel
+  livekit_client: ^2.2.0  # masked driver calls
+  url_launcher: ^6.3.0    # WhatsApp-first share (NG)
+  shared_preferences: ^2.3.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true

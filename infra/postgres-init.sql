@@ -34,7 +34,8 @@ CREATE TABLE IF NOT EXISTS event_outbox (
     schema_version  INT NOT NULL DEFAULT 1,
     published_at    TIMESTAMPTZ,               -- NULL = pending delivery
     attempts        INT NOT NULL DEFAULT 0,
-    last_error      TEXT
+    last_error      TEXT,
+    dead_lettered_at TIMESTAMPTZ               -- set at max attempts; NEVER dropped
 );
 CREATE INDEX IF NOT EXISTS event_outbox_pending ON event_outbox (tenant) WHERE published_at IS NULL;
 
@@ -87,4 +88,96 @@ CREATE TABLE IF NOT EXISTS affiliate_partners (
     gres_system_id  TEXT,                       -- GNet system id once connected
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (tenant, partner_ref)
+);
+
+-- ─── Phase 6 tables ────────────────────────────────────────────────────────
+
+-- Payment intents (payments breadth): one row per intent; state machine
+-- enforced by livery_core.adapters.payments.intent. Gateway refs let
+-- reconciliation re-derive every capture from the provider.
+CREATE TABLE IF NOT EXISTS payment_intents (
+    intent_id       UUID PRIMARY KEY,
+    tenant          TEXT NOT NULL,
+    sales_order     TEXT NOT NULL,
+    currency        TEXT NOT NULL CHECK (currency IN ('EUR', 'NGN')),
+    authorized_minor BIGINT NOT NULL CHECK (authorized_minor > 0),
+    captured_minor  BIGINT NOT NULL DEFAULT 0 CHECK (captured_minor >= 0),
+    refunded_minor  BIGINT NOT NULL DEFAULT 0 CHECK (refunded_minor >= 0),
+    state           TEXT NOT NULL CHECK (state IN
+        ('CREATED','AUTHORIZED','CAPTURED','REFUNDED','RELEASED','CANCELLED')),
+    gateway         TEXT NOT NULL DEFAULT '',
+    authorization_ref TEXT NOT NULL DEFAULT '',
+    capture_ref     TEXT NOT NULL DEFAULT '',
+    idempotency_key TEXT NOT NULL UNIQUE,       -- replay-safe by construction
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CHECK (captured_minor <= authorized_minor),  -- capture never exceeds auth
+    CHECK (refunded_minor <= captured_minor)
+);
+CREATE INDEX IF NOT EXISTS payment_intents_tenant_state
+    ON payment_intents (tenant, state);
+
+-- Telephony masking assignments (masked passenger↔driver calls).
+-- Partial unique index = a proxy number has AT MOST one live assignment.
+CREATE TABLE IF NOT EXISTS telephony_masking_assignments (
+    id              BIGSERIAL PRIMARY KEY,
+    tenant          TEXT NOT NULL,
+    booking_ref     TEXT NOT NULL,
+    party           TEXT NOT NULL CHECK (party IN ('passenger', 'driver')),
+    proxy_number    TEXT NOT NULL,
+    real_number     TEXT NOT NULL,              -- bridging only, never displayed
+    assigned_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    expires_at      TIMESTAMPTZ NOT NULL,
+    released_at     TIMESTAMPTZ
+);
+CREATE UNIQUE INDEX IF NOT EXISTS masking_one_active_per_number
+    ON telephony_masking_assignments (proxy_number)
+    WHERE released_at IS NULL;
+
+-- Widget embed keys: raw key is NEVER stored, only its sha256.
+CREATE TABLE IF NOT EXISTS widget_embed_keys (
+    key_id          TEXT PRIMARY KEY,
+    tenant          TEXT NOT NULL,
+    key_hash        TEXT NOT NULL UNIQUE,
+    allowed_origins JSONB NOT NULL,
+    rate_per_minute INT NOT NULL DEFAULT 30,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    revoked_at      TIMESTAMPTZ
+);
+
+-- Corporate accounts (monthly-billed business travel).
+CREATE TABLE IF NOT EXISTS corporate_accounts (
+    account_id      TEXT PRIMARY KEY,
+    tenant          TEXT NOT NULL,
+    name            TEXT NOT NULL,
+    currency        TEXT NOT NULL CHECK (currency IN ('EUR', 'NGN')),
+    po_required     BOOLEAN NOT NULL DEFAULT TRUE,
+    approval_over_minor BIGINT,                 -- NULL = no approval gate
+    active          BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS corporate_travelers (
+    traveler_id     TEXT PRIMARY KEY,
+    account_id      TEXT NOT NULL REFERENCES corporate_accounts(account_id),
+    name            TEXT NOT NULL,
+    email           TEXT NOT NULL,
+    default_cost_center TEXT,
+    max_service_class TEXT NOT NULL DEFAULT 'executive',
+    self_book       BOOLEAN NOT NULL DEFAULT TRUE
+);
+
+-- Flight snapshots: append-only observation log (provenance is a column,
+-- never an assumption). The adjustment decisions themselves flow through
+-- event_outbox as trip.rebooked / flight.status_changed.
+CREATE TABLE IF NOT EXISTS flight_snapshots (
+    id              BIGSERIAL PRIMARY KEY,
+    tenant          TEXT NOT NULL,
+    flight          TEXT NOT NULL,
+    status          TEXT NOT NULL,
+    scheduled_arrival TIMESTAMPTZ NOT NULL,
+    estimated_arrival TIMESTAMPTZ,
+    observed_at     TIMESTAMPTZ NOT NULL,
+    provenance      TEXT NOT NULL CHECK (provenance IN ('feed', 'manual', 'none')),
+    terminal        TEXT,
+    UNIQUE (tenant, flight, observed_at)
 );

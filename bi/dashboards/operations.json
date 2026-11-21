@@ -1,0 +1,38 @@
+{
+  "name": "LiveryOS — Operations",
+  "description": "Daily operator view. All figures per tenant; currencies never blended.",
+  "collection": "LiveryOS",
+  "cards": [
+    {
+      "title": "Bookings per day",
+      "display": "bar",
+      "view": "v_bi_bookings_per_day",
+      "query": "SELECT day, bookings, executive, sprinter FROM v_bi_bookings_per_day WHERE tenant = {{tenant}} ORDER BY day",
+      "axes": {"x": "day", "y": ["bookings", "executive", "sprinter"]}
+    },
+    {
+      "title": "Outbox health (pending & dead letters)",
+      "display": "table",
+      "view": "v_bi_outbox_health",
+      "query": "SELECT * FROM v_bi_outbox_health WHERE tenant = {{tenant}}",
+      "alert": "dead_letters > 0"
+    },
+    {
+      "title": "Fleet activity (active devices per hour)",
+      "display": "line",
+      "view": "v_bi_fleet_activity",
+      "query": "SELECT hour, active_devices FROM v_bi_fleet_activity WHERE tenant = {{tenant}} ORDER BY hour",
+      "axes": {"x": "hour", "y": ["active_devices"]}
+    },
+    {
+      "title": "Flight adjustments",
+      "display": "bar",
+      "view": "v_bi_flight_adjustments",
+      "query": "SELECT day, auto_shifts, alerts FROM v_bi_flight_adjustments WHERE tenant = {{tenant}} ORDER BY day",
+      "axes": {"x": "day", "y": ["auto_shifts", "alerts"]}
+    }
+  ],
+  "parameters": [
+    {"name": "tenant", "type": "text", "required": true}
+  ]
+}

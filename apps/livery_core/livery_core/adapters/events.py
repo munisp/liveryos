@@ -22,6 +22,10 @@ EVENT_TYPES = (
     "trip.status_changed",
     "invoice.issued",
     "invoice.paid",
+    "affiliate.commission_settled",
+    "affiliate.commission_pending_quote",
+    "trip.rebooked",
+    "flight.status_changed",
 )
 
 

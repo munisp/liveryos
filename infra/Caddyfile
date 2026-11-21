@@ -25,3 +25,8 @@ bi.example.com {
 	# Metabase — operator-only; add basicauth or IP allowlist for production
 	reverse_proxy metabase:3000
 }
+
+rtc.example.com {
+	# LiveKit signalling (wss) — masked calls + voice bots
+	reverse_proxy livekit:7880
+}

@@ -1,0 +1,24 @@
+name: liveryos_driver
+description: LiveryOS driver app — ride queue, transitions, position reporting.
+publish_to: "none"
+version: 0.1.0
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  geolocator: ^12.0.0      # position stream
+  dio: ^5.7.0              # bench REST (retry + offline queue hooks)
+  shared_preferences: ^2.3.0  # offline transition queue
+  livekit_client: ^2.2.0   # masked passenger calls (LiveKit)
+  centrifuge: ^0.15.0      # realtime dispatch updates
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
