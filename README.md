@@ -33,7 +33,7 @@ Built per the GroundAlliance re-implementation report (`groundalliance.agent.fin
 | Phase 1 | Foundation scaffold: full-stack compose, tenant provisioning, `livery_core` app skeleton, **rate engine (implemented + tested)**, ride dispatch state machine | ✅ this commit |
 | Phase 2 | Dispatch board assignment engine, position ingest (Traccar→Centrifugo), event catalog, chauffeur compliance sweep, GA transition adapter (CSV live / API gated on Gate 1) | ✅ done — 39 tests |
 | Phase 3 | **Affiliate engine** (farm-in/out, splits, blocking lists), **GRES mapping** (lossless round-trip primitive), **passenger + driver PWAs** (offline-first), shared API contract | ✅ done — 58 tests |
-| Phase 4 | Hardening + first tenant migration (report Ch. 8 playbook) | planned |
+| Phase 4 | Migration pipeline (idempotent delta imports), nightly reconciliation + cutover gate, event outbox dispatcher, cutover runbook | ✅ done — 72 tests |
 
 ## The rate engine
 
@@ -62,5 +62,12 @@ bash scripts/new-tenant.sh acme PT ops@acme.example     # provision a tenant sit
 - `api/contract.py` — the request/response shapes both apps speak: passenger booking view (ETA always source-labeled), driver transitions enforced server-side against the ride state machine, position reports validated (range, future-timestamp drop, **naive timestamps rejected** — coercing device-local time to UTC would fabricate fix times).
 - `apps/passenger_pwa/` — offline-first tracking PWA: cache-first shell, booking view cached in localStorage, honest "offline — showing last known state" indicator with timestamp, Centrifugo live updates when reachable, WhatsApp-first share (no install, no account needed by recipient), `?ref=` deep links.
 - `apps/driver_pwa/` — status transitions (client hints, server enforces), GPS reporting every 15s with ISO-8601 offset-carrying timestamps, localStorage offline queue with in-order flush and visible queued count — a driver always knows exactly what hasn't reached dispatch.
+
+## Phase 4 modules
+
+- `migration/pipeline.py` — GA CSV import runner: checksummed batches (provenance anchor), idempotent re-import via content hashes (unchanged rows skip), delta detection sizing the cutover window, quarantine flowing into `ga_import_rows` staging.
+- `migration/reconcile.py` — nightly parallel-run reconciliation: per-booking match by external_id, classification (`missing_in_livery` / `missing_in_ga` — explained native bookings / exact `money_mismatch` / `status_mismatch`), and `cutover_gate()` — 7 consecutive clean nights as the go/no-go, with blocking evidence attached.
+- `adapters/outbox.py` — event outbox dispatcher: at-least-once delivery (subscribers dedupe on `event_id`), exponential backoff capped at 300s, dead-letter after 8 attempts (an operator queue, never silent loss), HMAC-signed webhook delivery. Completes the Phase 2 emit seam.
+- `docs/phase4/cutover-runbook.md` — the executable T-90 → T+30 runbook: every step names its artifact and pass criterion, with STOP conditions and four rollback triggers.
 
 CI: `.github/workflows/ci.yml` — pytest + compose/JSON/shell validation + PWA JS syntax/manifest checks.
