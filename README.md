@@ -34,6 +34,7 @@ Built per the GroundAlliance re-implementation report (`groundalliance.agent.fin
 | Phase 2 | Dispatch board assignment engine, position ingest (Traccar→Centrifugo), event catalog, chauffeur compliance sweep, GA transition adapter (CSV live / API gated on Gate 1) | ✅ done — 39 tests |
 | Phase 3 | **Affiliate engine** (farm-in/out, splits, blocking lists), **GRES mapping** (lossless round-trip primitive), **passenger + driver PWAs** (offline-first), shared API contract | ✅ done — 58 tests |
 | Phase 4 | Migration pipeline (idempotent delta imports), nightly reconciliation + cutover gate, event outbox dispatcher, cutover runbook | ✅ done — 72 tests |
+| Phase 5 | VPS deployment pack: provisioning guide, Caddy TLS proxy + prod overlay, env template, idempotent bootstrap, nightly backup script | ✅ done |
 
 ## The rate engine
 
@@ -62,6 +63,10 @@ bash scripts/new-tenant.sh acme PT ops@acme.example     # provision a tenant sit
 - `api/contract.py` — the request/response shapes both apps speak: passenger booking view (ETA always source-labeled), driver transitions enforced server-side against the ride state machine, position reports validated (range, future-timestamp drop, **naive timestamps rejected** — coercing device-local time to UTC would fabricate fix times).
 - `apps/passenger_pwa/` — offline-first tracking PWA: cache-first shell, booking view cached in localStorage, honest "offline — showing last known state" indicator with timestamp, Centrifugo live updates when reachable, WhatsApp-first share (no install, no account needed by recipient), `?ref=` deep links.
 - `apps/driver_pwa/` — status transitions (client hints, server enforces), GPS reporting every 15s with ISO-8601 offset-carrying timestamps, localStorage offline queue with in-order flush and visible queued count — a driver always knows exactly what hasn't reached dispatch.
+
+## Deployment (Phase 5)
+
+`docs/deployment/vps-provisioning.md` is the full guide: sizing per market (8vCPU/16GB start; 32GB before importing the second Nominatim country; Lagos ground-truth sprint before selling ETAs), OS hardening, DNS + wildcard TLS via Caddy, first-boot order (Nominatim import takes hours — tenants after, not during), first tenant, backups, monitoring floor, and an honest list of what only a live boot can verify. Deploy: `cp infra/.env.example infra/.env` (fill every CHANGEME), then `bash scripts/deploy-vps.sh`. Production overlay `infra/docker-compose.prod.yml` adds Caddy and removes all dev port exposure — only 80/443 face the internet. Nightly: `scripts/backup.sh` (pg_dump ×3 + mariadb-dump + sites volume + manifest + optional rclone offsite + retention).
 
 ## Phase 4 modules
 

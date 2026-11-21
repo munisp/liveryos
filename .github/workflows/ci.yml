@@ -24,6 +24,8 @@ jobs:
       - run: python3 -c "import json;json.load(open('infra/centrifugo.json'))"
       - run: python3 -c "import json;json.load(open('apps/livery_core/livery_core/dispatch/doctype/livery_ride/livery_ride.json'))"
       - run: bash -n scripts/new-tenant.sh
+      - run: bash -n scripts/deploy-vps.sh && bash -n scripts/backup.sh
+      - run: pip install -q pyyaml && python3 -c "import yaml;yaml.safe_load(open('infra/docker-compose.prod.yml'))"
 
   pwa:
     runs-on: ubuntu-latest

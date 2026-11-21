@@ -1,0 +1,27 @@
+# LiveryOS TLS reverse proxy — edit domains before first boot.
+# Caddy obtains and renews Let's Encrypt certificates automatically.
+
+*.bench.example.com bench.example.com {
+	reverse_proxy bench:8000
+	encode zstd gzip
+	header {
+		X-Frame-Options SAMEORIGIN
+		X-Content-Type-Options nosniff
+		-Server
+	}
+}
+
+auth.example.com {
+	reverse_proxy keycloak:8080
+	encode zstd gzip
+}
+
+rt.example.com {
+	# Centrifugo websocket endpoint — the PWA live-tracking channel
+	reverse_proxy centrifugo:8000
+}
+
+bi.example.com {
+	# Metabase — operator-only; add basicauth or IP allowlist for production
+	reverse_proxy metabase:3000
+}
