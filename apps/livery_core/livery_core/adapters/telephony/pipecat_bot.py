@@ -84,25 +84,60 @@ def build_pipeline_spec(*, name: str, purpose: str, language: str,
     )
 
 
+def longcat_tts_spec(*, endpoint: Optional[str], model_key: str = "longcat-1b",
+                     voice_profile_id: Optional[str] = None) -> dict:
+    """TTS provider spec for the pipeline: LongCat-AudioDiT primary, piper
+    fallback. `provenance_per_utterance` instructs the runner to log which
+    engine actually spoke — a swapped voice is never silent. When endpoint
+    is None the spec honestly declares longcat disabled and piper primary.
+    """
+    if endpoint:
+        return {
+            "provider": "longcat-audiodit",
+            "endpoint": endpoint,
+            "model_key": model_key,
+            "sample_rate": 24000,
+            "voice_profile_id": voice_profile_id,
+            "guidance_method": "apg",
+            "fallback": {"provider": "piper"},
+            "provenance_per_utterance": True,
+            "self_hosted": True,
+        }
+    return {
+        "provider": "piper",
+        "note": "longcat-tts not configured — piper primary (labeled in "
+                "utterance provenance)",
+        "provenance_per_utterance": True,
+        "self_hosted": True,
+    }
+
+
 def voice_agent_config(market: str, *, llm_endpoint: str, llm_model: str,
-                       after_hours_mode: str = "voicemail") -> "list[PipecatPipelineSpec]":
+                       after_hours_mode: str = "voicemail",
+                       longcat_endpoint: Optional[str] = None,
+                       longcat_model_key: str = "longcat-1b",
+                       voice_profile_id: Optional[str] = None) -> "list[PipecatPipelineSpec]":
     """Standard two-bot deployment for a market.
 
     Market picks voice/language defaults: PT → pt-PT + English; NG → en-NG
     (+ pidgin-tolerant STT note). Both bots share one self-hostable stack.
+    TTS is LongCat-AudioDiT when its GPU service is configured, piper
+    otherwise — the spec records which, honestly.
     """
     market = market.upper()
     if market == "PT":
-        lang, tts_voice = "pt-PT", "pt-PT-default"
+        lang = "pt-PT"
     elif market == "NG":
-        lang, tts_voice = "en-NG", "en-ng-default"
+        lang = "en-NG"
     else:
         raise ValueError(f"unknown market {market!r}")
     stt = {"provider": "whisper", "model": "large-v3-turbo",
            "self_hosted": True}
     llm = {"provider": "openai-compatible", "endpoint": llm_endpoint,
            "model": llm_model}
-    tts = {"provider": "piper", "voice": tts_voice, "self_hosted": True}
+    tts = longcat_tts_spec(endpoint=longcat_endpoint,
+                           model_key=longcat_model_key,
+                           voice_profile_id=voice_profile_id)
     return [
         build_pipeline_spec(name=f"{market.lower()}-booking-line",
                             purpose="booking_line", language=lang,

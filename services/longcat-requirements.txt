@@ -1,0 +1,14 @@
+# LongCat-AudioDiT serving requirements (GPU host only — see
+# services/longcat_tts_server.py docstring; no GPU, no service, piper
+# fallback instead — honest degrade, never stalled CPU calls).
+#
+# 1. Clone the upstream repo next to this checkout and install it:
+#      git clone https://github.com/meituan-longcat/LongCat-AudioDiT
+#      cd LongCat-AudioDiT && pip install -r requirements.txt && pip install -e .
+# 2. Then install these pins (server glue):
+torch>=2.4            # CUDA build matching the host driver
+transformers>=4.46    # AudioDiT auto-registers via `import audiodit`
+soundfile>=0.12       # 24kHz WAV out
+librosa>=0.10         # prompt-audio loading for voice profiles
+# Model weights (not pip): huggingface-cli download meituan-longcat/LongCat-AudioDiT-1B
+# (or -3.5B when the GPU has >=16GB VRAM — SIM 0.818 vs 0.812 on Seed-ZH)

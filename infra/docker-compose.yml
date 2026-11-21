@@ -169,6 +169,30 @@ services:
     # Prod overlay strips host ports — Caddy terminates TLS and proxies
     # rtc.bench.example.com → livekit:7880 (wss).
 
+  longcat-tts:
+    # Voice concierge TTS (LongCat-AudioDiT, MIT). GPU-gated by design:
+    # this service only exists in the "gpu" compose profile — on GPU-less
+    # hosts it is simply absent and the voice layer honestly degrades to
+    # piper (provenance-labeled per utterance). The container itself also
+    # refuses to start without CUDA (exit 3) — no stalled CPU calls.
+    image: liveryos/longcat-tts:latest    # built from services/ (GPU host)
+    profiles: ["gpu"]
+    environment:
+      LONGCAT_MODEL_KEY: ${LONGCAT_MODEL_KEY:-longcat-1b}
+      LONGCAT_PORT: "8100"
+      VOICE_PROFILES_DIR: /profiles
+      NVIDIA_VISIBLE_DEVICES: all
+    volumes:
+      - longcat-models:/models
+      - voice-profiles:/profiles:ro       # consented prompt audios only
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
   metabase:
     image: metabase/metabase:latest
     # AGPL-3.0 — BOUNDARY SERVICE: connects to a MariaDB READ REPLICA with a
@@ -195,3 +219,5 @@ volumes:
   nominatim-data:
   traccar-data:
   metabase-db-data:
+  longcat-models:
+  voice-profiles:

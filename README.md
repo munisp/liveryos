@@ -36,6 +36,14 @@ Built per the GroundAlliance re-implementation report (`groundalliance.agent.fin
 | Phase 4 | Migration pipeline (idempotent delta imports), nightly reconciliation + cutover gate, event outbox dispatcher, cutover runbook | ✅ done — 72 tests |
 | Phase 5 | VPS deployment pack: provisioning guide, Caddy TLS proxy + prod overlay, env template, idempotent bootstrap, nightly backup script | ✅ done |
 | Phase 6 | **GA-parity gap closure (6 workstreams)**: payments breadth (Stripe EUR + Paystack NGN, pre-auth/capture, EBizCharge-parity posting + commission automation), telephony & messaging (LiveKit masked calls, Pipecat voice bots, WhatsApp/SMS/voice notifications), flight tracking (auto-adjust with hysteresis + lock window), booking widget + corporate portal (PO policy, budgets, approvals), Metabase BI (7 views + 2 dashboards), native Flutter apps | ✅ done — 147 tests |
+| Phase 7 | **LongCat voice concierge**: LongCat-AudioDiT (MIT, Meituan) as concierge TTS — engine selection with per-utterance provenance (longcat → labeled piper fallback → none), voice cloning with HARD consent gating (GDPR Art.9 / NDPA), verbatim number rendering (ETA source words are spoken), GPU-gated serving service (no CUDA → no service, piper instead — never stalled CPU calls) | ✅ done — 173 tests |
+
+## Phase 7 modules (LongCat voice concierge)
+
+- `adapters/voice/longcat.py` — synthesis config + **honest engine selection**: configured+healthy → `longcat-1b/3.5b`; unreachable/unconfigured → `piper-fallback` (LABELED); nothing → `none` (caller renders text, no fake audio). Duration estimation is a declared heuristic, not a promise.
+- `adapters/voice/profiles.py` — zero-shot voice cloning with **consent as a hard precondition**: cloned profiles refuse to register without a consent artifact + scope + prompt transcript; scope checks per tenant/purpose; revocation tombstones AND dereferences the prompt audio. The default concierge voice is fully synthetic — always lawful.
+- `adapters/voice/concierge.py` — personas (pt-PT / en-NG) with mandatory bot disclosure; quotes/statuses rendered from templates with **verbatim fields** (the ETA source word is SPOKEN — "about 12 minutes, estimate"); after-hours escalation never promises a human who isn't rostered.
+- `services/longcat_tts_server.py` — HTTP wrapper over upstream inference (24 kHz WAV); **exits 3 without CUDA** rather than serving stalled CPU audio; `/health` gates the domain layer's engine selection. Compose service `longcat-tts` behind the `gpu` profile (GPU-less hosts simply omit it).
 
 ## Phase 6 modules (GA-parity workstreams)
 
