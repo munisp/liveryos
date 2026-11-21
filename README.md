@@ -21,6 +21,7 @@ Built per the GroundAlliance re-implementation report (`groundalliance.agent.fin
 ```
 
 - **Tenancy**: site-per-tenant (per-tenant DB, backup, isolation) — `scripts/new-tenant.sh`.
+- **Databases**: **PostgreSQL is the platform DB** (`livery-db`): event outbox, position store, tenant registry, GA import staging, affiliate engine, Keycloak + Traccar state. MariaDB is fenced to ERPNext's own DocType schema only (upstream hard requirement — see `docs/adr/0001-postgres-platform-db.md`). Schema baseline: `infra/postgres-init.sql`.
 - **Money**: integer minor units everywhere; EUR and NGN never blended.
 - **License posture**: ERPNext is GPL-3.0 (SaaS use, not distribution — counsel flag open, report Ch. 9); Frappe framework MIT; satellites permissive-only with two documented boundary services (Metabase AGPL, Nominatim GPLv2/v3+).
 

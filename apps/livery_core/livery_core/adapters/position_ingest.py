@@ -87,8 +87,8 @@ def parse_traccar_webhook(payload: dict) -> PositionFix:
 
 class PositionStore:
     """Latest fix per device + bounded history. Persistence on the bench is
-    Redis/DocType-backed; this in-memory implementation is the reference
-    behavior and the test double."""
+    Postgres-backed (livery-db `position_fixes`, ADR 0001); this in-memory
+    implementation is the reference behavior and the test double."""
 
     def __init__(self, history_per_device: int = 120):
         self._latest: dict[str, PositionFix] = {}
@@ -235,8 +235,9 @@ def poll_traccar_fallback():  # pragma: no cover — bench-only wiring
 
 
 def _bench_store():  # pragma: no cover — bench only
-    """Redis-backed store matching PositionStore semantics. Until the Redis
-    layer lands (Phase 2 bench integration), the in-memory reference store
-    is used per-sweep — honest limitation: dedupe across sweeps is lost,
-    stale-drop still works within a sweep."""
+    """Postgres-backed store (livery-db `position_fixes`, ADR 0001) matching
+    PositionStore semantics; the UNIQUE(tenant, device_id, recorded_at)
+    constraint gives cross-sweep dedupe. Until the bench-integration writer
+    lands, the in-memory reference store is used per-sweep — honest
+    limitation: dedupe across sweeps is lost, stale-drop works within one."""
     return PositionStore()

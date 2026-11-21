@@ -12,6 +12,11 @@ version: "3.8"
 services:
   mariadb:
     image: mariadb:10.11
+    # FENCED: MariaDB is kept ONLY because ERPNext v15 / Frappe requires it
+    # upstream (the Frappe Postgres adapter is experimental and ERPNext does
+    # not test against it). No LiveryOS-owned data is stored here — it holds
+    # the ERPNext DocType schema only. All platform-owned data lives in
+    # livery-db (Postgres, below). See docs/adr/0001-postgres-platform-db.md.
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-changeme}
     volumes:
@@ -22,6 +27,29 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
+
+  livery-db:
+    image: postgres:16-alpine
+    # THE platform database — every datastore LiveryOS owns:
+    #   livery_core : event outbox, position store, tenant registry,
+    #                 affiliate engine, GA import staging, audit log
+    #   keycloak    : SSO state (realm per tenant)
+    #   traccar     : GPS device/position backend
+    # Databases are provisioned by postgres-init.sql on first boot.
+    # metabase keeps its OWN container (metabase-db) — boundary-service
+    # isolation (AGPL), deliberate, not an oversight.
+    environment:
+      POSTGRES_PASSWORD: ${PG_PASSWORD:-changeme}
+    volumes:
+      - livery-pg-data:/var/lib/postgresql/data
+      - ./postgres-init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    ports:
+      - "5432:5432"
 
   redis:
     image: redis:7-alpine
@@ -46,6 +74,9 @@ services:
       LIVERY_TRACCAR_URL: http://traccar:8082
       LIVERY_CENTRIFUGO_URL: http://centrifugo:8000
       LIVERY_KEYCLOAK_URL: http://keycloak:8080
+      # Platform Postgres (livery-db) — outbox, positions, registry, affiliates.
+      # The bench reads/writes LiveryOS-owned data HERE, never in MariaDB.
+      LIVERY_PG_DSN: postgresql://postgres:${PG_PASSWORD:-changeme}@livery-db:5432/livery_core
     volumes:
       - bench-sites:/home/frappe/frappe-bench/sites
       - ../apps/livery_core:/home/frappe/frappe-bench/apps/livery_core
@@ -74,6 +105,16 @@ services:
     # Apache-2.0. 200+ GPS protocols; REST/WebSocket/MQTT/webhooks.
     # Canonical flow: Traccar → webhook → position store → Centrifugo → boards/apps
     # (report Ch. 4 §4.2.3, Ch. 5 flow 2).
+    # Production: point Traccar's traccar.xml at livery-db (database `traccar`)
+    # instead of the default embedded H2 — the compose env below feeds the
+    # mounted config; H2 is single-file and not a production store.
+    depends_on:
+      livery-db:
+        condition: service_healthy
+    environment:
+      LIVERY_TRACCAR_DB_URL: jdbc:postgresql://livery-db:5432/traccar
+      LIVERY_TRACCAR_DB_USER: postgres
+      LIVERY_TRACCAR_DB_PASSWORD: ${PG_PASSWORD:-changeme}
     ports:
       - "8082:8082"
       - "5000-5150:5000-5150/tcp"   # device protocol ports — restrict in production
@@ -92,10 +133,19 @@ services:
   keycloak:
     image: quay.io/keycloak/keycloak:25.0
     # Apache-2.0. One realm per tenant (report Ch. 5 §5.3.2).
+    # Backed by livery-db (database `keycloak`) — replaces the default
+    # dev-file H2 store, which must never hold production realms.
     command: ["start-dev"]
+    depends_on:
+      livery-db:
+        condition: service_healthy
     environment:
       KEYCLOAK_ADMIN: ${KC_ADMIN:-admin}
       KEYCLOAK_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD:-changeme}
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://livery-db:5432/keycloak
+      KC_DB_USERNAME: postgres
+      KC_DB_PASSWORD: ${PG_PASSWORD:-changeme}
     ports:
       - "8080:8080"
 
@@ -118,6 +168,7 @@ services:
 
 volumes:
   mariadb-data:
+  livery-pg-data:
   redis-data:
   bench-sites:
   valhalla-tiles:
