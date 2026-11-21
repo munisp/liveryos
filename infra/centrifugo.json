@@ -1,0 +1,16 @@
+{
+  "token_hmac_secret_key": "${CENTRIFUGO_TOKEN_HMAC}",
+  "admin": false,
+  "client_insecure": false,
+  "namespaces": [
+    {
+      "name": "tenant",
+      "presence": true,
+      "history_size": 10,
+      "history_ttl": "60s",
+      "force_recovery": true
+    }
+  ],
+  "channel_prefix": "tenant:{tenant}#",
+  "log_level": "info"
+}
