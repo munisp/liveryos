@@ -32,7 +32,7 @@ Built per the GroundAlliance re-implementation report (`groundalliance.agent.fin
 | Phase 0 | Vendor-diligence pack (`docs/phase0/`): GA email script, export-completeness checklist, contract review, Gate 1 scorecard, GNet application prep | ✅ done |
 | Phase 1 | Foundation scaffold: full-stack compose, tenant provisioning, `livery_core` app skeleton, **rate engine (implemented + tested)**, ride dispatch state machine | ✅ this commit |
 | Phase 2 | Dispatch board assignment engine, position ingest (Traccar→Centrifugo), event catalog, chauffeur compliance sweep, GA transition adapter (CSV live / API gated on Gate 1) | ✅ done — 39 tests |
-| Phase 3 | Driver/passenger apps, affiliate engine, GNet GRES conformance | planned |
+| Phase 3 | **Affiliate engine** (farm-in/out, splits, blocking lists), **GRES mapping** (lossless round-trip primitive), **passenger + driver PWAs** (offline-first), shared API contract | ✅ done — 58 tests |
 | Phase 4 | Hardening + first tenant migration (report Ch. 8 playbook) | planned |
 
 ## The rate engine
@@ -55,4 +55,12 @@ bash scripts/new-tenant.sh acme PT ops@acme.example     # provision a tenant sit
 - `adapters/compliance.py` — daily licence/medical expiry sweep (gap item 12); non-compliant chauffeurs drop out of board eligibility and trigger alerts. PT (TVDE) and NG (LASG/LASTMA) aware.
 - `adapters/transition/ga_adapter.py` — GA anti-corruption seam: CSV export path live (per-row quarantine, Decimal minor-unit money, US+ISO datetimes, status mapping, `provenance="ga_import"`); `ApiSource` raises `NotConfigured` until Gate 1 delivers documented API + sandbox.
 
-CI: `.github/workflows/ci.yml` — pytest + compose/JSON/shell validation.
+## Phase 3 modules
+
+- `affiliates/engine.py` — the moat component (report Ch. 3 §3.2.6): eligibility with readable rejection reasons (direction, active, blocking lists over airports/zones/service classes), dispatcher-preference-sovereign selection, and Decimal minor-unit settlement splits where partner + operator ALWAYS sum to the gross (no penny lost, either currency). Per-booking-quote partners settle honestly `None`, never a fabricated zero.
+- `affiliates/gres.py` — GRES draft mapping: canonical ↔ wire payload, bidirectional status codes, and `roundtrip_check()` — the conformance primitive. When GNet's sandbox schema lands, only `_FIELD_MAP` changes; the round-trip property and its tests stay.
+- `api/contract.py` — the request/response shapes both apps speak: passenger booking view (ETA always source-labeled), driver transitions enforced server-side against the ride state machine, position reports validated (range, future-timestamp drop, **naive timestamps rejected** — coercing device-local time to UTC would fabricate fix times).
+- `apps/passenger_pwa/` — offline-first tracking PWA: cache-first shell, booking view cached in localStorage, honest "offline — showing last known state" indicator with timestamp, Centrifugo live updates when reachable, WhatsApp-first share (no install, no account needed by recipient), `?ref=` deep links.
+- `apps/driver_pwa/` — status transitions (client hints, server enforces), GPS reporting every 15s with ISO-8601 offset-carrying timestamps, localStorage offline queue with in-order flush and visible queued count — a driver always knows exactly what hasn't reached dispatch.
+
+CI: `.github/workflows/ci.yml` — pytest + compose/JSON/shell validation + PWA JS syntax/manifest checks.

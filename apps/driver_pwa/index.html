@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#6B7B5E">
+<title>LiveryOS — Driver</title>
+<link rel="manifest" href="manifest.webmanifest">
+<style>
+  :root { --ink:#333; --muted:#666; --line:#ddd; --accent:#6B7B5E; --bg:#f7f8f5; --card:#fff; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family: Georgia, serif; background:var(--bg); color:var(--ink); }
+  header { background:var(--card); border-bottom:1px solid var(--line); padding:16px 20px; display:flex; justify-content:space-between; align-items:center; }
+  header h1 { margin:0; font-size:18px; }
+  #gps { font-size:12px; }
+  #gps.on { color:#4a7a52; } #gps.off { color:#a0653a; }
+  main { max-width:560px; margin:0 auto; padding:20px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:18px; margin-bottom:16px; }
+  label { font-size:13px; color:var(--muted); display:block; margin-bottom:4px; }
+  input { width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:8px; font-size:16px; margin-bottom:10px; }
+  .status { font-size:22px; letter-spacing:.04em; margin:6px 0 14px; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  button { background:var(--accent); color:#fff; border:0; border-radius:8px; padding:14px; font-size:15px; cursor:pointer; }
+  button:disabled { opacity:.35; cursor:not-allowed; }
+  button.warn { background:#a0653a; }
+  .muted { color:var(--muted); font-size:13px; }
+  #queue { font-size:13px; color:#a0653a; }
+  .err { color:#9a3d3d; font-size:14px; margin-top:8px; }
+</style>
+</head>
+<body>
+<header><h1>LiveryOS — Driver</h1><span id="gps" class="off">● GPS off</span></header>
+<main>
+  <div class="card">
+    <label for="driver">Driver ID</label><input id="driver" placeholder="e.g. drv-7">
+    <label for="ride">Ride ID</label><input id="ride" placeholder="e.g. ride-1042">
+    <button id="load">Load ride</button>
+    <div class="err" id="err"></div>
+  </div>
+
+  <div class="card" id="panel" hidden>
+    <span class="muted">Current status</span>
+    <div class="status" id="status">—</div>
+    <div class="grid" id="buttons"></div>
+    <div class="muted" id="hint"></div>
+  </div>
+
+  <div class="card">
+    <span class="muted">Position reporting</span>
+    <div id="posline" style="margin:6px 0">—</div>
+    <button id="toggleGps">Start position reporting</button>
+    <div id="queue"></div>
+  </div>
+</main>
+<script src="app.js"></script>
+</body>
+</html>
